@@ -258,10 +258,6 @@ getgenv().htgetf = newcclosure(function(url)
 	return HtForceGet(game, url)
 end)
 
-getgenv().printidentity = newcclosure(function()
-	return "Current identity is 8"
-end)
-
 getgenv().syn_crypt_b64_encode = newcclosure(function(input)
 	-- Check if the input is valid
 	if not input or type(input) ~= "string" then

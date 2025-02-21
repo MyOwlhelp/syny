@@ -276,12 +276,18 @@ local function decompile(script_instance)
 		Method = "POST",
 		Body = encoded
 	})
-	
-	local fixedOutput = FixDecomp(httpResult.Body)
+
+	local output = httpResult.Body
 	if httpResult.StatusCode ~= 200 then
-		return "-- Error occurred while requesting the API, Error:\n\n--[[\n" .. httpResult.Body .. "\n--]]"
+		return "-- Error occurred while requesting the API, Error:\n\n--[[\n" .. output .. "\n--]]"
 	else
-		return header .. "\n\n" .. fixedOutput
+		-- Check if FixDecomp() is actually needed
+		local fixedOutput = FixDecomp(output)
+		if fixedOutput == output then  -- If FixDecomp() doesn't change anything, skip it
+			return header .. "\n\n" .. output
+		else
+			return header .. "\n\n" .. fixedOutput
+		end
 	end
 end
 

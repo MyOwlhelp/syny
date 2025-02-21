@@ -1,6 +1,6 @@
 --[[ Synapse Y
      Date:      2/17/2025
-     Desc: 	Open Sourced.
+     Desc: 		Open Sourced.
      File:      Init.lua
 ]]
 
@@ -224,63 +224,41 @@ function ExtraSplitting(inputstr)
 	return newStr
 end
 
-local indentLevel = 0  -- Track indentation levels
-
 function FixDecomp(Scr)
 	Scr = string.format("%s", ExtraSplitting(Scr))
 	local NewScr = Scr:gsub("    ", "¬")
 	local OutputScript = ""
-	local FoundErrors = {}
-	local NewSection = ""
-	local IterationVariables = nil
-	local IterationVariableStart = ""
 	local FoundErrorStart = false
 	local ForceAdd = nil
 	local PairsType = nil
 	local PairsValue = nil
-	local NextNeeded = nil
+	local IterationVariableStart = ""
 
 	for _, v in ipairs(SplitString(NewScr, "¬")) do
 		repeat
-			local line = v  -- Store the original line
-
+			-- Detect loop assignment (pairs)
 			if string.match(v, "local v%d+, v%d+, v%d+ = ") then
-				NewSection = ""
-				IterationVariables = nil
 				FoundErrorStart = true
-				IterationVariableStart = SplitString(SplitString(string.match(v, "local v%d+, v%d+, v%d+ = "), " ")[2], ",")[1]
-				PairsType = string.sub(SplitString(SplitString(v, "=")[2], "(")[1], 2, string.len(SplitString(SplitString(v, "=")[2], "(")[1]))
-				PairsValue = string.sub(SplitString(SplitString(v, "=")[2], "(")[2], 1, string.len(SplitString(SplitString(v, "=")[2], ")")[#SplitString(SplitString(v, "=")[2], ")")]))
-				PairsValue = string.sub(PairsValue, 1, string.len(PairsValue) - 1)
+				IterationVariableStart = SplitString(SplitString(v, "=")[2], " ")[2]
+				PairsType = string.match(v, "= ([%w_]+)%(")
+				PairsValue = string.match(v, "%((.-)%)$")
 			end
 
+			-- Detect iterator variable declaration
 			if string.match(v, "local v%d+, v%d+ = " .. IterationVariableStart) then
-				IterationVariables = {}
-				table.insert(IterationVariables, SplitString(SplitString(string.match(v, "local v%d+, v%d+ = " .. IterationVariableStart), " ")[2], ",")[1])
-				table.insert(IterationVariables, SplitString(SplitString(string.match(v, "local v%d+, v%d+ = " .. IterationVariableStart), " ")[3], ",")[1])
-				ForceAdd = "for " .. IterationVariables[1] .. ", " .. IterationVariables[2] .. " in " .. PairsType .. "(" .. PairsValue .. ") do"
-				indentLevel = indentLevel + 1  -- Increase indentation level for loop
+				local iterVars = SplitString(string.match(v, "local (v%d+), (v%d+)"), ", ")
+				ForceAdd = "for " .. iterVars[1] .. ", " .. iterVars[2] .. " in " .. PairsType .. "(" .. PairsValue .. ") do"
 			end
 
-			if FoundErrorStart then
-				if v == "break" then
-					NextNeeded = "end"
-				end
-			end
-
-			if not FoundErrorStart then
-				OutputScript = OutputScript .. string.rep("    ", indentLevel) .. line .. "\n"
-			end
-
-			if NextNeeded == "end" and v == "end" then
-				indentLevel = indentLevel - 1  -- Reduce indentation level when closing block
-				FoundErrorStart = false
-				NextNeeded = nil
-			end
-
+			-- Replace manually written while loop with a proper for loop
 			if ForceAdd then
-				OutputScript = OutputScript .. string.rep("    ", indentLevel - 1) .. ForceAdd .. "\n"
+				OutputScript = OutputScript .. ForceAdd .. "\n"
 				ForceAdd = nil
+			elseif v == "break" and FoundErrorStart then
+				OutputScript = OutputScript .. "end\n"
+				FoundErrorStart = false
+			else
+				OutputScript = OutputScript .. v .. "\n"
 			end
 		until true
 	end
@@ -301,7 +279,7 @@ local function decompile(script_instance)
 	
 	local fixedOutput = FixDecomp(httpResult.Body)
 	if httpResult.StatusCode ~= 200 then
-		return "-- Error occurred while requesting the API, Bytecode:\n\n--[[\n" .. httpResult.Body .. "\n--]]"
+		return "-- Error occurred while requesting the API, Error:\n\n--[[\n" .. httpResult.Body .. "\n--]]"
 	else
 		return header .. "\n\n" .. fixedOutput
 	end

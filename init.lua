@@ -1,6 +1,6 @@
 --[[ Synapse Y
      Date:      2/17/2025
-     Desc: 		Open Sourced.
+     Desc: 	Open Sourced.
      File:      Init.lua
 ]]
 
@@ -205,6 +205,83 @@ getgenv().require = function(scr, Req)
 	return res
 end
 
+function SplitString(inputstr, sep)
+	if sep == nil then
+		sep = "%s"
+	end
+	local t={}
+	for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+		table.insert(t, str)
+	end
+	return t
+end
+
+function ExtraSplitting(inputstr)
+	local newStr = ""
+	for l in inputstr:gmatch("([^\n]*)\n?") do
+		newStr = newStr..l.."¬"
+	end
+	return newStr
+end
+
+function FixDecomp(Scr)
+	Scr = string.format("%s",ExtraSplitting(Scr))
+	local NewScr = Scr:gsub("    ","¬")
+	local OutputScript = ""
+	local FoundErrors = {}
+	local NewSection = ""
+	local IterationVariables = nil
+	local IterationVariableStart = ""
+	local FoundErrorStart = false
+	local ForceAdd = nil
+	local PairsType = nil
+	local PairsValue = nil
+	local NextNeeded = nil
+
+	for _, v in ipairs(SplitString(NewScr,"¬")) do
+		repeat
+			if string.match(v,"local v%d+, v%d+, v%d+ = ") then
+				NewSection = ""
+				IterationVariables = nil
+				FoundErrorStart = true
+				IterationVariableStart = SplitString(SplitString(string.match(v,"local v%d+, v%d+, v%d+ = "), " ")[2], ",")[1]
+				PairsType = string.sub(SplitString(SplitString(v,"=")[2], "(")[1], 2, string.len(SplitString(SplitString(v,"=")[2], "(")[1]))
+				PairsValue = string.sub(SplitString(SplitString(v,"=")[2], "(")[2], 1, string.len(SplitString(SplitString(v,"=")[2], ")")[#SplitString(SplitString(v,"=")[2], ")")]))
+				PairsValue = string.sub(PairsValue,1,string.len(PairsValue)-1)
+			end
+
+			if string.match(v, "local v%d+, v%d+ = "..IterationVariableStart) then
+				IterationVariables = {}
+				table.insert(IterationVariables, SplitString(SplitString(string.match(v, "local v%d+, v%d+ = "..IterationVariableStart), " ")[2], ",")[1])
+				table.insert(IterationVariables, SplitString(SplitString(string.match(v, "local v%d+, v%d+ = "..IterationVariableStart), " ")[3], ",")[1])
+				ForceAdd = "for "..IterationVariables[1]..", "..IterationVariables[2].." in "..PairsType.."("..PairsValue..") do"
+			end
+
+			if FoundErrorStart then
+				if v == "break" then
+					NextNeeded = "end"
+				end
+			end
+
+			if not FoundErrorStart then
+				OutputScript = OutputScript..v.."\n"
+			end
+
+			if NextNeeded == "end" and v == "end" then
+				FoundErrorStart = false
+				NextNeeded = nil
+			end
+
+			if ForceAdd then
+				OutputScript = OutputScript..ForceAdd.."\n"
+				ForceAdd = nil
+			end
+		until true
+	end
+
+	return OutputScript
+end
+
 local function decompile(script_instance)
 	local bytecode = getscriptbytecode(script_instance)
 	local encoded = crypt.base64.encode(bytecode)
@@ -215,11 +292,12 @@ local function decompile(script_instance)
 		Method = "POST",
 		Body = encoded
 	})
-
+	
+	local fixedOutput = FixDecomp(httpResult.Body)
 	if httpResult.StatusCode ~= 200 then
 		return "-- Error occurred while requesting the API, Bytecode:\n\n--[[\n" .. httpResult.Body .. "\n--]]"
 	else
-		return header .. "\n\n" .. httpResult.Body
+		return header .. "\n\n" .. fixedOutput
 	end
 end
 

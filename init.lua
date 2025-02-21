@@ -301,6 +301,8 @@ getgenv().is_synapse_function = newcclosure(function(func)
 	return (iscclosure and iscclosure(func)) or false
 end)
 
-getgenv().Drawing = Draw
+getgenv().isexecutorfunction = newcclosure(function(func)
+	return true
+end)
 
 print("Synapse Y is initialized.")

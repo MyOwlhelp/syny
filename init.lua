@@ -55,11 +55,11 @@ local GetLoadedModules = getloadedmodules
 local syn = {}
 
 -- Improved newcclosure implementation
-getgenv().newcclosure = function(f)
-	if type(f) ~= "function" then error("expected function as argument #1") end
-	if not islclosure(f) then error("expected Lua function as argument #1") end
-	return NewCC(f)
-end
+getgenv().newcclosure = function(c, str)
+	(function()
+		c(str);
+	end)();
+end;
 
 -- Hook function
 getgenv().hookfunction = newcclosure(function(old, new)
@@ -236,36 +236,6 @@ getgenv().saveinstance = newcclosure(function()
 	local Options = { NilInstances = true, RemovePlayerCharacters = false }
 	synsaveinstance(Options)
 end)
-
-local CoreGui = game:GetService("CoreGui")
-
--- Hook the CoreGui functions
-local mt = getrawmetatable(CoreGui)
-setreadonly(mt, false)
-
-local oldIndex = mt.__index
-
-mt.__index = function(self, key)
-	if self == CoreGui then
-		if key == "ToggleRecording" or 
-			key == "TakeScreenshot" or 
-			key == "SendCommand" or 
-			key == "ExecuteJavaScript" or 
-			key == "GetAsyncFullUrl" then
-			return function(...)
-				warn("Blocked attempt to call CoreGui:" .. key)
-				return nil -- Prevent execution
-			end
-		elseif key == "GetRobuxBalance" then
-			return function(...)
-				return nil -- Hide balance
-			end
-		end
-	end
-	return oldIndex(self, key)
-end
-
-setreadonly(mt, true)
 
 --getloadedmodules fix
 getgenv().getloadedmodules = newcclosure(function()

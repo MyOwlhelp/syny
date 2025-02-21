@@ -1,6 +1,6 @@
 --[[ Synapse Y
      Date:      2/17/2025
-     Desc: 		Open Sourced.
+     Desc: 	Open Sourced.
      File:      Init.lua
 ]]
 
@@ -205,66 +205,6 @@ getgenv().require = function(scr, Req)
 	return res
 end
 
-function SplitString(inputstr, sep)
-	if sep == nil then
-		sep = "%s"
-	end
-	local t={}
-	for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-		table.insert(t, str)
-	end
-	return t
-end
-
-function ExtraSplitting(inputstr)
-	newStr = ""
-	for l in inputstr:gmatch("([^\n]*)\n?") do
-		newStr = newStr..l.."¬"
-	end
-	return newStr
-end
-
-function FixDecomp(Scr)
-	Scr = string.format("%s", ExtraSplitting(Scr))
-	local NewScr = Scr:gsub("    ", "¬")
-	local OutputScript = ""
-	local FoundErrorStart = false
-	local ForceAdd = nil
-	local PairsType = nil
-	local PairsValue = nil
-	local IterationVariableStart = ""
-
-	for _, v in ipairs(SplitString(NewScr, "¬")) do
-		repeat
-			-- Detect loop assignment (pairs)
-			if string.match(v, "local v%d+, v%d+, v%d+ = ") then
-				FoundErrorStart = true
-				IterationVariableStart = SplitString(SplitString(v, "=")[2], " ")[2]
-				PairsType = string.match(v, "= ([%w_]+)%(")
-				PairsValue = string.match(v, "%((.-)%)$")
-			end
-
-			-- Detect iterator variable declaration
-			if string.match(v, "local v%d+, v%d+ = " .. IterationVariableStart) then
-				local iterVars = SplitString(string.match(v, "local (v%d+), (v%d+)"), ", ")
-				ForceAdd = "for " .. iterVars[1] .. ", " .. iterVars[2] .. " in " .. PairsType .. "(" .. PairsValue .. ") do"
-			end
-
-			-- Replace manually written while loop with a proper for loop
-			if ForceAdd then
-				OutputScript = OutputScript .. ForceAdd .. "\n"
-				ForceAdd = nil
-			elseif v == "break" and FoundErrorStart then
-				OutputScript = OutputScript .. "end\n"
-				FoundErrorStart = false
-			else
-				OutputScript = OutputScript .. v .. "\n"
-			end
-		until true
-	end
-
-	return OutputScript
-end
 
 local function decompile(script_instance)
 	local bytecode = getscriptbytecode(script_instance)
@@ -277,17 +217,10 @@ local function decompile(script_instance)
 		Body = encoded
 	})
 
-	local output = httpResult.Body
 	if httpResult.StatusCode ~= 200 then
-		return "-- Error occurred while requesting the API, Error:\n\n--[[\n" .. output .. "\n--]]"
+		return "-- Error occurred while requesting the API, ERROR:\n\n--[[\n" .. httpResult.Body .. "\n--]]"
 	else
-		-- Check if FixDecomp() is actually needed
-		local fixedOutput = FixDecomp(output)
-		if fixedOutput == output then  -- If FixDecomp() doesn't change anything, skip it
-			return header .. "\n\n" .. output
-		else
-			return header .. "\n\n" .. fixedOutput
-		end
+		return header .. "\n\n" .. httpResult.Body
 	end
 end
 

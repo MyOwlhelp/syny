@@ -1,3 +1,4 @@
+--!native
 --[[ Synapse Y
      Date:      2/17/2025
      Desc: 		Open Sourced.
@@ -55,11 +56,11 @@ local GetLoadedModules = getloadedmodules
 local syn = {}
 
 -- Improved newcclosure implementation
-getgenv().newcclosure = function(c, str)
-	(function()
-		c(str);
-	end)();
-end;
+getgenv().newcclosure = function(f)
+	if type(f) ~= "function" then error("expected function as argument #1") end
+	if not islclosure(f) then error("expected Lua function as argument #1") end
+	return NewCC(f)
+end
 
 -- Hook function
 getgenv().hookfunction = newcclosure(function(old, new)
